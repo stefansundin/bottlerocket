@@ -598,7 +598,7 @@ impl AwsEcs {
                         "bottlerocket-{}-{}-{}-{}",
                         self.variant,
                         self.arch,
-                        self.starting_version.as_ref().context("The starting version must be provided for migration testing")?, 
+                        self.starting_version.as_ref().context("The starting version must be provided for migration testing")?,
                         self.migrate_starting_commit.as_ref().context("The commit for the starting version must be provided if the starting image id is not")?
                     ), & self.arch,
                     self.region.to_string(),

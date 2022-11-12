@@ -109,7 +109,7 @@ This is useful for testing, and for sharing private AMIs with specific accounts.
 
 If you want to make your AMIs public to the world, there's a shortcut:
 
-```
+```shell
 cargo make ami-public
 ```
 
@@ -136,7 +136,8 @@ This will copy the fully versioned parameter from earlier, something like:
 /your/prefix/here/aws-k8s-1.21/x86_64/1.0.1-dafe3b16/image_id
 ```
 
-...to a simpler parameter name:
+... to a simpler parameter name:
+
 ```
 /your/prefix/here/aws-k8s-1.21/x86_64/latest/image_id
 ```
