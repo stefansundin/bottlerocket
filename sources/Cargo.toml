@@ -17,7 +17,6 @@ members = [
     "api/static-pods",
     "api/storewolf",
     "api/thar-be-settings",
-    "api/thar-be-updates",
     "api/settings-committer",
     "api/migration/migrator",
     "api/migration/migration-helpers",
@@ -58,11 +57,6 @@ members = [
     "parse-datetime",
 
     "retry-read",
-
-    "updater/block-party",
-    "updater/signpost",
-    "updater/update_metadata",
-    "updater/updog",
 
     "constants",
 

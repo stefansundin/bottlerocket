@@ -400,9 +400,9 @@ pub struct ImageLayout {
 
 /// These are the historical defaults for all variants, before we added support
 /// for customizing these properties.
-static DEFAULT_OS_IMAGE_SIZE_GIB: ImageSize = ImageSize(2);
+static DEFAULT_OS_IMAGE_SIZE_GIB: ImageSize = ImageSize(1);
 static DEFAULT_DATA_IMAGE_SIZE_GIB: ImageSize = ImageSize(1);
-static DEFAULT_PUBLISH_IMAGE_SIZE_HINT_GIB: ImageSize = ImageSize(22);
+static DEFAULT_PUBLISH_IMAGE_SIZE_HINT_GIB: ImageSize = ImageSize(1);
 static DEFAULT_PARTITION_PLAN: PartitionPlan = PartitionPlan::Split;
 
 impl ImageLayout {

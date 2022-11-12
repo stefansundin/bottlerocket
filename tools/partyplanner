@@ -13,6 +13,7 @@ BOTTLEROCKET_HASH_TYPECODE="598f10af-c955-4456-6a99-7720068a6cea"
 BOTTLEROCKET_RESERVED_TYPECODE="0c5d99a5-d331-4147-baef-08e2b855bdc9"
 BOTTLEROCKET_PRIVATE_TYPECODE="440408bb-eb0b-4328-a6e5-a29038fad706"
 BOTTLEROCKET_DATA_TYPECODE="626f7474-6c65-6474-6861-726d61726b73"
+BOTTLEROCKET_SWAP_TYPECODE="3df99968-3a9b-4f64-9faa-680a1319cd12"
 
 # Under BIOS, the firmware will transfer control to the MBR on the boot device,
 # which will pass control to the GRUB stage 2 binary written to the BIOS boot
@@ -55,12 +56,12 @@ BIOS_MIB="4" # one per disk
 
 # The GPT and BIOS reservations are fixed overhead that will be deducted from
 # the space nominally given to the private partition used to persist settings.
-OVERHEAD_MIB="$((GPT_MIB * 2 + BIOS_MIB))"
+# OVERHEAD_MIB="$((GPT_MIB * 2 + BIOS_MIB))"
 
 # The 'recommended' size for the EFI partition is 100MB but our EFI images are
 # under 2MB, so this will suffice for now. It would be possible to increase the
 # EFI partition size by taking space from the "reserved" area below.
-EFI_MIB="5" # one per bank
+EFI_MIB="2" # one per bank
 
 ###############################################################################
 # Section 3: variable sized partitions
@@ -74,11 +75,14 @@ EFI_MIB="5" # one per bank
 # Increasing any of these constants is very likely to break systems on update,
 # since the corresponding partitions are adjacent on disk and have no room to
 # grow.
-BOOT_SCALE_FACTOR="20"
-ROOT_SCALE_FACTOR="460"
-HASH_SCALE_FACTOR="5"
-RESERVE_SCALE_FACTOR="15"
-PRIVATE_SCALE_FACTOR="24"
+BOOT_SCALE_FACTOR="35"
+ROOT_SCALE_FACTOR="480"
+HASH_SCALE_FACTOR="4"
+# RESERVE_SCALE_FACTOR="15"
+PRIVATE_SCALE_FACTOR="18"
+SWAP_SCALE_FACTOR="483"
+
+# 1+2+35+480+4+18+483+1=1024
 
 ###############################################################################
 # Section 4: ASCII art gallery
@@ -128,27 +132,30 @@ set_partition_sizes() {
   pp_offset="${5:?}"
 
   # Most of the partitions on the main image scale with the overall size.
-  local boot_mib root_mib hash_mib reserved_mib private_mib
+  local boot_mib root_mib hash_mib private_mib swap_mib
   boot_mib="$((os_image_gib * BOOT_SCALE_FACTOR))"
   root_mib="$((os_image_gib * ROOT_SCALE_FACTOR))"
   hash_mib="$((os_image_gib * HASH_SCALE_FACTOR))"
 
   # Reserved space is everything left in the bank after the other partitions
   # are scaled, minus the fixed 5 MiB EFI partition in that bank.
-  reserved_mib=$((os_image_gib * RESERVE_SCALE_FACTOR - EFI_MIB))
+  # reserved_mib=$((os_image_gib * RESERVE_SCALE_FACTOR - EFI_MIB))
 
   # Private space scales per GiB, minus the BIOS and GPT partition overhead.
-  private_mib=$((os_image_gib * PRIVATE_SCALE_FACTOR - OVERHEAD_MIB))
+  private_mib=$((os_image_gib * PRIVATE_SCALE_FACTOR))
+
+  # Swap
+  swap_mib=$((os_image_gib * SWAP_SCALE_FACTOR))
 
   # Skip the GPT label at start of disk.
   local offset
   ((offset = 1))
 
-  pp_offset["BIOS"]="${offset}"
-  pp_size["BIOS"]="${BIOS_MIB}"
-  ((offset += BIOS_MIB))
+  # pp_offset["BIOS"]="${offset}"
+  # pp_size["BIOS"]="${BIOS_MIB}"
+  # ((offset += BIOS_MIB))
 
-  for bank in A B ; do
+  for bank in A ; do
     pp_offset["EFI-${bank}"]="${offset}"
     pp_size["EFI-${bank}"]="${EFI_MIB}"
     ((offset += EFI_MIB))
@@ -165,14 +172,18 @@ set_partition_sizes() {
     pp_size["HASH-${bank}"]="${hash_mib}"
     ((offset += hash_mib))
 
-    pp_offset["RESERVED-${bank}"]="${offset}"
-    pp_size["RESERVED-${bank}"]="${reserved_mib}"
-    ((offset += reserved_mib))
+    # pp_offset["RESERVED-${bank}"]="${offset}"
+    # pp_size["RESERVED-${bank}"]="${reserved_mib}"
+    # ((offset += reserved_mib))
   done
 
   pp_offset["PRIVATE"]="${offset}"
   pp_size["PRIVATE"]="${private_mib}"
   ((offset += private_mib))
+
+  pp_offset["SWAP"]="${offset}"
+  pp_size["SWAP"]="${swap_mib}"
+  ((offset += swap_mib))
 
   case "${partition_plan}" in
     split)
@@ -204,8 +215,9 @@ set_partition_labels() {
   pp_label["EFI-A"]="EFI-SYSTEM"
   pp_label["EFI-B"]="EFI-BACKUP"
   pp_label["PRIVATE"]="BOTTLEROCKET-PRIVATE"
+  pp_label["SWAP"]="BOTTLEROCKET-SWAP"
   for part in BOOT ROOT HASH RESERVED ; do
-    for bank in A B ; do
+    for bank in A ; do
       pp_label["${part}-${bank}"]="BOTTLEROCKET-${part}-${bank}"
     done
   done
@@ -220,9 +232,10 @@ set_partition_types() {
   pp_type["EFI-A"]="${EFI_SYSTEM_TYPECODE}"
   pp_type["EFI-B"]="${EFI_BACKUP_TYPECODE}"
   pp_type["PRIVATE"]="${BOTTLEROCKET_PRIVATE_TYPECODE}"
+  pp_type["SWAP"]="${BOTTLEROCKET_SWAP_TYPECODE}"
   local typecode
   for part in BOOT ROOT HASH RESERVED ; do
-    for bank in A B ; do
+    for bank in A ; do
       typecode="BOTTLEROCKET_${part}_TYPECODE"
       typecode="${!typecode}"
       pp_type["${part}-${bank}"]="${typecode}"

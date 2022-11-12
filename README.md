@@ -1,3 +1,37 @@
+# 1 GB Bottlerocket Remix
+
+**TL;DR:** A stripped-down Bottlerocket variant that fits on a 1 GB OS volume and fills out the remaining space with a swap partition.
+
+**Why?** 1) To learn about Bottlerocket. 2) To see if it was possible. 3) Extreme cost control, smallest possible EBS volume.
+
+**Should you use this?** Probably not.
+
+The following has been changed:
+- The "B" partitions have been removed. Also removes BIOS (not necessary on arm64) and RESERVED-A (unused).
+- Since the "B" partitions were removed, it is no longer possible to upgrade so some utilities related to upgrading have been removed (updater, migrator, signpost, thar-be-updates, updog).
+- Removing the partitions makes it possible to fit the OS in a 1 GB volume, plus with a lot of space left over (483 MB).
+- The left over space is configured as a swap partition. Because Kubernetes doesn't like swap you would have to make further changes to use this with Kubernetes.
+- The only variant tested is `aws-ecs-1`. If you build another variant then you probably have to make the root partition bigger.
+- You have to use arm64 because the BIOS partition has been removed.
+- I don't provide any built image so you have to build this yourself if you want to try it.
+- Note: This was last rebased on top of 1.10.1.
+- Discuss here: https://github.com/bottlerocket-os/bottlerocket/discussions/2576
+
+Final partition setup:
+
+```shell
+# partx -s /dev/nvme0n1
+NR   START     END SECTORS SIZE NAME                 UUID
+ 1    2048    6143    4096   2M EFI-SYSTEM           cca50ddc-00ba-4fe7-bfdb-8ddc32e43f44
+ 2    6144   77823   71680  35M BOTTLEROCKET-BOOT-A  b92f002d-a062-4db9-9134-a89723a040e6
+ 3   77824 1060863  983040 480M BOTTLEROCKET-ROOT-A  61afcbe9-0929-4fe7-aef5-05dcf4b56a98
+ 4 1060864 1069055    8192   4M BOTTLEROCKET-HASH-A  e1d89f48-09ea-4a67-9320-a874b5583b25
+ 5 1069056 1105919   36864  18M BOTTLEROCKET-PRIVATE f95c1576-a5c7-452f-acb9-7201abcb92d2
+ 6 1105920 2095103  989184 483M BOTTLEROCKET-SWAP    ba8a5943-9037-490c-8b81-dbfe13b50715
+```
+
+---
+
 # Bottlerocket OS
 
 Welcome to Bottlerocket!

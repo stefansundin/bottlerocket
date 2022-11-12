@@ -2,6 +2,7 @@
 members = [
     "aws-dev",
     "aws-ecs-1",
+    "aws-ecs-1-1gb",
     "aws-ecs-1-nvidia",
     "aws-k8s-1.21",
     "aws-k8s-1.21-nvidia",

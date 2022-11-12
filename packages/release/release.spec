@@ -72,6 +72,9 @@ Source1100: systemd-tmpfiles-setup-service-debug.conf
 # systemd-udevd default link
 Source1200: 80-release.link
 
+# Swap
+Source1599: dev-disk-by\x2dpartlabel-BOTTLEROCKET\x2dSWAP.swap
+
 BuildArch: noarch
 Requires: %{_cross_os}acpid
 Requires: %{_cross_os}audit
@@ -180,6 +183,8 @@ install -p -m 0644 %{S:1016} %{buildroot}%{_cross_udevrulesdir}/61-mount-cdrom.r
 
 ln -s preconfigured.target %{buildroot}%{_cross_unitdir}/default.target
 
+install -p -m 0644 '%{S:1599}' %{buildroot}%{_cross_unitdir}
+
 %files
 %{_cross_factorydir}%{_cross_sysconfdir}/nsswitch.conf
 %{_cross_sysctldir}/80-release.conf
@@ -213,6 +218,7 @@ ln -s preconfigured.target %{buildroot}%{_cross_unitdir}/default.target
 %{_cross_unitdir}/*-kernels.mount
 %{_cross_unitdir}/*-licenses.mount
 %{_cross_unitdir}/var-lib-bottlerocket.mount
+%{_cross_unitdir}/dev-disk-*.swap
 %{_cross_unitdir}/*-modules.mount
 %{_cross_unitdir}/runtime.slice
 %{_cross_unitdir}/set-hostname.service

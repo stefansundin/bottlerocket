@@ -109,6 +109,7 @@ ROOT_IMAGE="$(mktemp)"
 DATA_IMAGE="$(mktemp)"
 EFI_IMAGE="$(mktemp)"
 PRIVATE_IMAGE="$(mktemp)"
+SWAP_IMAGE="$(mktemp)"
 BOTTLEROCKET_DATA="$(mktemp)"
 
 ROOT_MOUNT="$(mktemp -d)"
@@ -148,10 +149,15 @@ for part in \
   BIOS \
   EFI-A BOOT-A ROOT-A HASH-A RESERVED-A \
   EFI-B BOOT-B ROOT-B HASH-B RESERVED-B \
-  PRIVATE DATA ;
+  PRIVATE SWAP DATA ;
 do
   # We only append the data partition if we're using the unified layout.
   if [ "${part}" == "DATA" ] && [ "${PARTITION_PLAN}" != "unified" ] ; then
+    continue
+  fi
+
+  # Skip BIOS, Reserved, and Bank B partitions
+  if [[ "${part}" == "BIOS" || "${part}" == "RESERVED-"* || "${part}" == *"-B" ]] ; then
     continue
   fi
 
@@ -279,7 +285,7 @@ mkdir -p "${ROOT_MOUNT}/lost+found"
 ROOT_LABELS=$(setfiles -n -d -F -m -r "${ROOT_MOUNT}" \
     "${SELINUX_FILE_CONTEXTS}" "${ROOT_MOUNT}" \
     | awk -v root="${ROOT_MOUNT}" '{gsub(root"/","/"); gsub(root,"/"); print "ea_set", $1, "security.selinux", $4}')
-mkfs.ext4 -O ^has_journal -b "${VERITY_DATA_BLOCK_SIZE}" -d "${ROOT_MOUNT}" "${ROOT_IMAGE}" "${partsize[ROOT-A]}M"
+mkfs.ext4 -N 4096 -O ^has_journal -b "${VERITY_DATA_BLOCK_SIZE}" -d "${ROOT_MOUNT}" "${ROOT_IMAGE}" "${partsize[ROOT-A]}M"
 echo "${ROOT_LABELS}" | debugfs -w -f - "${ROOT_IMAGE}"
 resize2fs -M "${ROOT_IMAGE}"
 dd if="${ROOT_IMAGE}" of="${OS_IMAGE}" conv=notrunc bs=1M seek="${partoff[ROOT-A]}"
@@ -344,7 +350,7 @@ chmod -R go-rwx "${BOOT_MOUNT}"
 BOOT_LABELS=$(setfiles -n -d -F -m -r "${BOOT_MOUNT}" \
     "${SELINUX_FILE_CONTEXTS}" "${BOOT_MOUNT}" \
   | awk -v root="${BOOT_MOUNT}" '{gsub(root"/","/"); gsub(root,"/"); print "ea_set", $1, "security.selinux", $4}')
-mkfs.ext4 -O ^has_journal -d "${BOOT_MOUNT}" "${BOOT_IMAGE}" "${partsize[BOOT-A]}M"
+mkfs.ext4 -N 32 -O ^has_journal -d "${BOOT_MOUNT}" "${BOOT_IMAGE}" "${partsize[BOOT-A]}M"
 echo "${BOOT_LABELS}" | debugfs -w -f - "${BOOT_IMAGE}"
 resize2fs -M "${BOOT_IMAGE}"
 dd if="${BOOT_IMAGE}" of="${OS_IMAGE}" conv=notrunc bs=1M seek="${partoff[BOOT-A]}"
@@ -361,6 +367,12 @@ cp /host/tools/bootconfig/empty-bootconfig.data "${PRIVATE_MOUNT}/bootconfig.dat
 # - retain the block size to handle worse-case alignment for hardware
 mkfs.ext4 -b 4096 -i 4096 -I 256 -d "${PRIVATE_MOUNT}" "${PRIVATE_IMAGE}" "${partsize[PRIVATE]}M"
 dd if="${PRIVATE_IMAGE}" of="${OS_IMAGE}" conv=notrunc bs=1M seek="${partoff[PRIVATE]}"
+
+# BOTTLEROCKET-SWAP
+
+dd if=/dev/zero of="${SWAP_IMAGE}" bs=1M count="${partsize[SWAP]}"
+mkswap "${SWAP_IMAGE}"
+dd if="${SWAP_IMAGE}" of="${OS_IMAGE}" conv=notrunc bs=1M seek="${partoff[SWAP]}"
 
 # BOTTLEROCKET-DATA
 
