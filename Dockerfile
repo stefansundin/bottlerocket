@@ -72,7 +72,6 @@ WORKDIR /home/builder
 
 USER builder
 ENV PACKAGE=${PACKAGE} ARCH=${ARCH}
-COPY --chown=builder roles/${REPO}.root.json ./rpmbuild/BUILD/root.json
 # We attempt to copy `Licenses.toml` and `licenses` for the current build, otherwise
 # an empty file and a directory are created so that `bottlerocket-license-tool` will
 # fail with a more descriptive error message.
@@ -91,7 +90,6 @@ RUN rpmdev-setuptree \
    && echo "%_cross_variant_runtime ${VARIANT_RUNTIME}" >> .rpmmacros \
    && echo "%_cross_variant_family ${VARIANT_FAMILY}" >> .rpmmacros \
    && echo "%_cross_variant_flavor ${VARIANT_FAMILY:-none}" >> .rpmmacros \
-   && echo "%_cross_repo_root_json %{_builddir}/root.json" >> .rpmmacros \
    && echo "%_topdir /home/builder/rpmbuild" >> .rpmmacros \
    && rm ${ARCH} shared rust cargo \
    && echo "%bcond_without $(V=${VARIANT_PLATFORM,,}; echo ${V//-/_})_platform" > .bconds \
@@ -212,29 +210,6 @@ RUN --mount=target=/host \
     && echo ${NOCACHE}
 
 # =^..^= =^..^= =^..^= =^..^= =^..^= =^..^= =^..^= =^..^= =^..^= =^..^= =^..^= =^..^= =^..^=
-# Creates an archive of the datastore migrations.
-FROM sdk as migrationbuild
-ARG ARCH
-ARG VERSION_ID
-ARG BUILD_ID
-ARG NOCACHE
-ARG VARIANT
-ENV VARIANT=${VARIANT} VERSION_ID=${VERSION_ID} BUILD_ID=${BUILD_ID}
-WORKDIR /root
-
-USER root
-RUN --mount=target=/host \
-    mkdir -p /local/migrations \
-    && find /host/build/rpms/ -maxdepth 1 -type f \
-        -name "bottlerocket-${ARCH}-migrations-*.rpm" \
-        -not -iname '*debuginfo*' \
-        -exec cp '{}' '/local/migrations/' ';' \
-    && /host/tools/rpm2migrations \
-        --package-dir=/local/migrations \
-        --output-dir=/local/output \
-    && echo ${NOCACHE}
-
-# =^..^= =^..^= =^..^= =^..^= =^..^= =^..^= =^..^= =^..^= =^..^= =^..^= =^..^= =^..^= =^..^=
 # Creates an archive of kernel development sources and toolchain.
 FROM repobuild as kmodkitbuild
 ARG PACKAGES
@@ -266,5 +241,4 @@ RUN --mount=target=/host \
 # expected location so that buildsys can find them and copy them out.
 FROM scratch AS variant
 COPY --from=imgbuild /local/output/. /output/
-COPY --from=migrationbuild /local/output/. /output/
 COPY --from=kmodkitbuild /local/output/. /output/

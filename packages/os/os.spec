@@ -20,7 +20,6 @@ Source3: eni-max-pods
 # potentially causing a conflict.
 #SourceX: root.json
 
-Source5: updog-toml
 Source6: metricdog-toml
 Source7: host-ctr-toml
 Source8: oci-default-hooks-json
@@ -32,9 +31,7 @@ Source101: early-boot-config.service
 Source102: sundog.service
 Source103: storewolf.service
 Source105: settings-applier.service
-Source106: migrator.service
 Source107: host-containers@.service
-Source110: mark-successful-boot.service
 Source111: metricdog.service
 Source112: metricdog.timer
 Source113: send-boot-success.service
@@ -47,7 +44,6 @@ Source119: prepare-primary-interface.service
 Source120: reboot-if-required.service
 
 # 2xx sources: tmpfilesd configs
-Source200: migration-tmpfiles.conf
 Source201: host-containers-tmpfiles.conf
 Source202: thar-be-updates-tmpfiles.conf
 Source203: bootstrap-containers-tmpfiles.conf
@@ -68,17 +64,13 @@ Requires: %{_cross_os}ghostdog
 Requires: %{_cross_os}host-containers
 Requires: %{_cross_os}logdog
 Requires: %{_cross_os}metricdog
-Requires: %{_cross_os}migration
 Requires: %{_cross_os}netdog
 Requires: %{_cross_os}prairiedog
 Requires: %{_cross_os}schnauzer
 Requires: %{_cross_os}settings-committer
-Requires: %{_cross_os}signpost
 Requires: %{_cross_os}storewolf
 Requires: %{_cross_os}sundog
 Requires: %{_cross_os}thar-be-settings
-Requires: %{_cross_os}thar-be-updates
-Requires: %{_cross_os}updog
 Requires: %{_cross_os}shimpei
 
 %if %{with aws_k8s_family}
@@ -150,11 +142,6 @@ Summary: Applies changed settings to a Bottlerocket system
 %description -n %{_cross_os}thar-be-settings
 %{summary}.
 
-%package -n %{_cross_os}thar-be-updates
-Summary: Dispatches Bottlerocket update commands
-%description -n %{_cross_os}thar-be-updates
-%{summary}.
-
 %package -n %{_cross_os}host-containers
 Summary: Manages system- and user-defined host containers
 Requires: %{_cross_os}host-ctr
@@ -166,10 +153,6 @@ Summary: Data store creator
 %description -n %{_cross_os}storewolf
 %{summary}.
 
-%package -n %{_cross_os}migration
-Summary: Tools to migrate version formats
-%description -n %{_cross_os}migration
-
 %package -n %{_cross_os}settings-committer
 Summary: Commits settings from user data, defaults, and generators at boot
 %description -n %{_cross_os}settings-committer
@@ -180,16 +163,6 @@ Summary: Tool to manage ephemeral disks
 %description -n %{_cross_os}ghostdog
 %{summary}.
 
-%package -n %{_cross_os}signpost
-Summary: Bottlerocket GPT priority querier/switcher
-%description -n %{_cross_os}signpost
-%{summary}.
-
-%package -n %{_cross_os}updog
-Summary: Bottlerocket updater CLI
-%description -n %{_cross_os}updog
-not much what's up with you
-
 %package -n %{_cross_os}metricdog
 Summary: Bottlerocket health metrics sender
 %description -n %{_cross_os}metricdog
@@ -199,11 +172,6 @@ Summary: Bottlerocket health metrics sender
 Summary: Bottlerocket log extractor
 %description -n %{_cross_os}logdog
 use logdog to extract logs from the Bottlerocket host
-
-%package -n %{_cross_os}migrations
-Summary: Thar data store migrations
-%description -n %{_cross_os}migrations
-%{summary}.
 
 %package -n %{_cross_os}prairiedog
 Summary: Tools for kdump support
@@ -289,16 +257,11 @@ mkdir bin
 
 # For static builds, first we find the migrations in the source tree.  We assume the directory name
 # is the same as the crate name.
-migrations=()
-for migration in $(find %{_builddir}/sources/api/migration/migrations/v[0-9]* -mindepth 1 -maxdepth 1 -type d); do
-    migrations+=("-p $(basename ${migration})")
-done
 # Store the output so we can print it after waiting for the backgrounded job.
 static_output="$(mktemp)"
 # Build static binaries in the background.
 %cargo_build_static --manifest-path %{_builddir}/sources/Cargo.toml \
     -p apiclient \
-    ${migrations[*]} \
     >> ${static_output} 2>&1 &
 # Save the PID so we can wait for it later.
 static_pid="$!"
@@ -313,13 +276,9 @@ echo "** Output from non-static builds:"
     -p schnauzer \
     -p bork \
     -p thar-be-settings \
-    -p thar-be-updates \
     -p host-containers \
     -p storewolf \
     -p settings-committer \
-    -p migrator \
-    -p signpost \
-    -p updog \
     -p logdog \
     -p metricdog \
     -p ghostdog \
@@ -348,10 +307,10 @@ install -d %{buildroot}%{_cross_bindir}
 for p in \
   apiserver \
   early-boot-config netdog sundog schnauzer bork corndog \
-  thar-be-settings thar-be-updates host-containers \
+  thar-be-settings host-containers \
   storewolf settings-committer \
-  migrator prairiedog certdog \
-  signpost updog metricdog logdog \
+  prairiedog certdog \
+  metricdog logdog \
   ghostdog bootstrap-containers \
   shimpei \
   %{?with_ecs_runtime: ecs-settings-applier} \
@@ -367,22 +326,6 @@ for p in apiclient ; do
   install -p -m 0755 ${HOME}/.cache/.static/%{__cargo_target_static}/release/${p} %{buildroot}%{_cross_bindir}
 done
 
-install -d %{buildroot}%{_cross_datadir}/migrations
-for version_path in %{_builddir}/sources/api/migration/migrations/v[0-9]*; do
-  [ -e "${version_path}" ] || continue
-  for migration_path in "${version_path}"/*; do
-    [ -e "${migration_path}" ] || continue
-
-    version="${version_path##*/}"
-    crate_name="${migration_path##*/}"
-    migration_binary_name="migrate_${version}_${crate_name#migrate-}"
-    built_path="${HOME}/.cache/.static/%{__cargo_target_static}/release/${crate_name}"
-    target_path="%{buildroot}%{_cross_datadir}/migrations/${migration_binary_name}"
-
-    install -m 0555 "${built_path}" "${target_path}"
-  done
-done
-
 install -d %{buildroot}%{_cross_datadir}/bottlerocket
 
 install -d %{buildroot}%{_cross_sysusersdir}
@@ -393,16 +336,13 @@ install -d %{buildroot}%{_cross_datadir}/eks
 install -p -m 0644 %{S:3} %{buildroot}%{_cross_datadir}/eks
 %endif
 
-install -d %{buildroot}%{_cross_datadir}/updog
-install -p -m 0644 %{_cross_repo_root_json} %{buildroot}%{_cross_datadir}/updog
-
 install -d %{buildroot}%{_cross_templatedir}
-install -p -m 0644 %{S:5} %{S:6} %{S:7} %{S:8} %{buildroot}%{_cross_templatedir}
+install -p -m 0644 %{S:6} %{S:7} %{S:8} %{buildroot}%{_cross_templatedir}
 
 install -d %{buildroot}%{_cross_unitdir}
 install -p -m 0644 \
   %{S:100} %{S:101} %{S:102} %{S:103} %{S:105} \
-  %{S:106} %{S:107} %{S:110} %{S:111} %{S:112} \
+  %{S:107} %{S:111} %{S:112} \
   %{S:113} %{S:114} %{S:118} %{S:119} %{S:120} \
   %{buildroot}%{_cross_unitdir}
 
@@ -421,9 +361,7 @@ install -p -m 0644 %{S:117} %{buildroot}%{_cross_unitdir}
 %endif
 
 install -d %{buildroot}%{_cross_tmpfilesdir}
-install -p -m 0644 %{S:200} %{buildroot}%{_cross_tmpfilesdir}/migration.conf
 install -p -m 0644 %{S:201} %{buildroot}%{_cross_tmpfilesdir}/host-containers.conf
-install -p -m 0644 %{S:202} %{buildroot}%{_cross_tmpfilesdir}/thar-be-updates.conf
 install -p -m 0644 %{S:203} %{buildroot}%{_cross_tmpfilesdir}/bootstrap-containers.conf
 install -p -m 0644 %{S:204} %{buildroot}%{_cross_tmpfilesdir}/netdog.conf
 
@@ -439,7 +377,6 @@ install -p -m 0644 %{S:300} %{buildroot}%{_cross_udevrulesdir}/80-ephemeral-stor
 %files -n %{_cross_os}apiserver
 %{_cross_bindir}/apiserver
 %{_cross_unitdir}/apiserver.service
-%{_cross_unitdir}/migrator.service
 %{_cross_sysusersdir}/api.conf
 
 %files -n %{_cross_os}apiclient
@@ -472,10 +409,6 @@ install -p -m 0644 %{S:300} %{buildroot}%{_cross_udevrulesdir}/80-ephemeral-stor
 %{_cross_bindir}/thar-be-settings
 %{_cross_unitdir}/settings-applier.service
 
-%files -n %{_cross_os}thar-be-updates
-%{_cross_bindir}/thar-be-updates
-%{_cross_tmpfilesdir}/thar-be-updates.conf
-
 %files -n %{_cross_os}host-containers
 %{_cross_bindir}/host-containers
 %{_cross_unitdir}/host-containers@.service
@@ -487,30 +420,12 @@ install -p -m 0644 %{S:300} %{buildroot}%{_cross_udevrulesdir}/80-ephemeral-stor
 %{_cross_bindir}/storewolf
 %{_cross_unitdir}/storewolf.service
 
-%files -n %{_cross_os}migration
-%{_cross_bindir}/migrator
-%{_cross_tmpfilesdir}/migration.conf
-
-%files -n %{_cross_os}migrations
-%dir %{_cross_datadir}/migrations
-%{_cross_datadir}/migrations
-
 %files -n %{_cross_os}settings-committer
 %{_cross_bindir}/settings-committer
 
 %files -n %{_cross_os}ghostdog
 %{_cross_bindir}/ghostdog
 %{_cross_udevrulesdir}/80-ephemeral-storage.rules
-
-%files -n %{_cross_os}signpost
-%{_cross_bindir}/signpost
-%{_cross_unitdir}/mark-successful-boot.service
-
-%files -n %{_cross_os}updog
-%{_cross_bindir}/updog
-%{_cross_datadir}/updog
-%dir %{_cross_templatedir}
-%{_cross_templatedir}/updog-toml
 
 %files -n %{_cross_os}metricdog
 %{_cross_bindir}/metricdog

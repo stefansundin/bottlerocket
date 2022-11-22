@@ -3824,7 +3824,6 @@ dependencies = [
  "path-absolutize",
  "pem",
  "percent-encoding",
- "reqwest",
  "ring",
  "serde",
  "serde_json",
@@ -3998,33 +3997,6 @@ dependencies = [
  "serde_plain",
  "snafu",
  "toml",
-]
-
-[[package]]
-name = "updog"
-version = "0.1.0"
-dependencies = [
- "bottlerocket-release",
- "chrono",
- "log",
- "lz4",
- "models",
- "rand",
- "reqwest",
- "semver",
- "serde",
- "serde_json",
- "serde_plain",
- "signal-hook",
- "signpost",
- "simplelog",
- "snafu",
- "structopt",
- "tempfile",
- "toml",
- "tough",
- "update_metadata",
- "url",
 ]
 
 [[package]]

@@ -46,18 +46,6 @@ restart-commands = ["/bin/systemctl try-restart host-containerd.service"]
 version-lock = "latest"
 ignore-waves = false
 
-[services.updog]
-configuration-files = ["updog-toml"]
-restart-commands = []
-
-[configuration-files.updog-toml]
-path = "/etc/updog.toml"
-template-path = "/usr/share/templates/updog-toml"
-
-[metadata.settings.updates]
-affected-services = ["updog"]
-seed.setting-generator = "bork seed"
-
 # HostContainers
 
 [services.host-containers]

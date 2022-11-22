@@ -2,7 +2,7 @@
 skip_core_tasks = true
 
 [env]
-BUILDSYS_ARCH = { script = ['echo "${BUILDSYS_ARCH:-$(uname -m)}"'] }
+BUILDSYS_ARCH = { script = ['echo "${BUILDSYS_ARCH:-aarch64}"'] }
 BUILDSYS_ROOT_DIR = "${CARGO_MAKE_WORKING_DIRECTORY}"
 BUILDSYS_BUILD_DIR = "${BUILDSYS_ROOT_DIR}/build"
 BUILDSYS_PACKAGES_DIR = "${BUILDSYS_BUILD_DIR}/rpms"
@@ -18,13 +18,13 @@ BUILDSYS_VERSION_BUILD = { script = ["git describe --always --dirty --exclude '*
 BUILDSYS_RELEASE_CONFIG_PATH = "${BUILDSYS_ROOT_DIR}/Release.toml"
 BUILDSYS_VERSION_IMAGE = { script = ["awk -F '[ =\"]+' '$1 == \"version\" {print $2}' ${BUILDSYS_RELEASE_CONFIG_PATH}"] }
 # This can be overridden with -e to build a different variant from the variants/ directory
-BUILDSYS_VARIANT = { script = ['echo "${BUILDSYS_VARIANT:-aws-k8s-1.24}"'] }
+BUILDSYS_VARIANT = { script = ['echo "${BUILDSYS_VARIANT:-aws-ecs-1-1gb}"'] }
 # Product name used for file and directory naming
-BUILDSYS_NAME = "bottlerocket"
+BUILDSYS_NAME = "bottlerocket-1gb"
 # "Pretty" name used to identify OS in os-release, bootloader, etc.
 # If you're building a Bottlerocket remix, you'd want to set this to something like
 # "Bottlerocket Remix by ${CORP}" or "${CORP}'s Bottlerocket Remix"
-BUILDSYS_PRETTY_NAME = "Bottlerocket OS"
+BUILDSYS_PRETTY_NAME = "1 GB Bottlerocket Remix"
 # SDK name used for building
 BUILDSYS_SDK_NAME="bottlerocket"
 # SDK version used for building
@@ -479,7 +479,7 @@ cargo install \
 # Note: this is separate from publish-tools because publish-tools takes a while
 # to build and isn't needed to build an image.
 [tasks.publish-setup-tools]
-dependencies = ["setup", "fetch-sources", "tuftool"]
+dependencies = ["setup", "fetch-sources"]
 script = [
 '''
 cargo install \
@@ -492,7 +492,7 @@ cargo install \
 ]
 
 [tasks.infra-tools]
-dependencies = ["setup", "fetch-sources", "tuftool"]
+dependencies = ["setup", "fetch-sources"]
 script = [
 '''
 cargo install \
@@ -719,19 +719,6 @@ dependencies = [
     "check-licenses",
     "fetch-licenses",
     "build-variant",
-]
-
-[tasks.tuftool]
-script = [
-'''
-cargo install \
-  --jobs ${BUILDSYS_JOBS} \
-  --locked \
-  --root tools \
-  --quiet \
-  --version ${PUBLISH_TUFTOOL_VERSION} \
-  tuftool
-'''
 ]
 
 [tasks.create-infra]

@@ -276,8 +276,8 @@ done
 %exclude %{_cross_sbindir}/sfdisk
 %exclude %{_cross_sbindir}/sulogin
 %exclude %{_cross_sbindir}/swaplabel
-%exclude %{_cross_sbindir}/swapoff
-%exclude %{_cross_sbindir}/swapon
+%{_cross_sbindir}/swapoff
+%{_cross_sbindir}/swapon
 %exclude %{_cross_sbindir}/tunelp
 %exclude %{_cross_sbindir}/uuidd
 %exclude %{_cross_sbindir}/vigr
